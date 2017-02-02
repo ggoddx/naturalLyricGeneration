@@ -22,7 +22,6 @@ def main():
 
     ## Column headers
     colNames = dataCSV.next()
-    print colNames
 
     for row in dataCSV:
         ## Index of row
@@ -34,18 +33,9 @@ def main():
         ## Lyrics (song text) in row
         lyrics = row[colNames.index('lyrics')]
 
-
         lyricStats.append([(song, i), lyrics.count('\n') + 1,
                            len(nltk.word_tokenize(lyrics.decode('utf-8')))])
 
-    ## File to write lyric statistics
-    lyricCSV = csv.writer(open('lyricStats.csv', 'wb', buffering = 0))
-
-    lyricCSV.writerows(lyricStats)
-
-    return
-
-    for row in dataCSV:
         ## Artist in row
         artist = row[colNames.index('artist')]
 
@@ -68,6 +58,9 @@ def main():
         genres[genre] += 1
         years[year] += 1
 
+    ## File to write lyric statistics
+    lyricCSV = csv.writer(open('lyricStats.csv', 'wb', buffering = 0))
+
     artists = np.transpose(np.array([artists.keys(), artists.values()]))
     genres = np.transpose(np.array([genres.keys(), genres.values()]))
     years = np.transpose(np.array([years.keys(), years.values()]))
@@ -81,6 +74,7 @@ def main():
     ## File to write years
     yearCSV = csv.writer(open('yearStats.csv', 'wb', buffering = 0))
 
+    lyricCSV.writerows(lyricStats)
     artistCSV.writerows(artists)
     genreCSV.writerows(genres)
     yearCSV.writerows(years)
