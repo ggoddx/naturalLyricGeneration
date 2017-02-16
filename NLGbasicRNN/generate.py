@@ -3,6 +3,7 @@ from keras.layers import Dense, Dropout, LSTM
 from keras.models import Sequential
 from keras.preprocessing.text import text_to_word_sequence as t2ws
 from keras.utils import np_utils
+from prepData import Lyrics
 from sklearn.feature_extraction.text import CountVectorizer
 
 import csv, getSysArgs
@@ -10,70 +11,32 @@ import numpy as np
 
 
 def main():
-    ## Lyrics file
-    fName = '../lyrics.csv'
+    ## To gather training lyric data
+    train = Lyrics()
 
-    ## Open CSV file of lyrics
-    dataCSV = csv.reader(open(fName, 'rU'))
-
-    ## Column headers
-    colNames = dataCSV.next()
-
-    ## One set of lyrics
-    lyricData = dataCSV.next()
-
-    ## Song text
-    lyrics = lyricData[colNames.index('lyrics')]
-
-    lyrics = lyrics.replace('\n', ' endofline ')
-    lyrics = lyrics.replace(',', ' commachar')
-    lyrics = lyrics.replace('?', ' questionmark')
-
-    ## Word sequence from lyrics
-    lyricSeq = t2ws(lyrics)
-
-    ## Word indicies
-    words = list(set(lyricSeq))
-
-    ## Numerical sequence from lyrics
-    numSeq = []
-
-    for word in lyricSeq:
-        numSeq.append(words.index(word))
+    train.firstSong(getSysArgs.usage(['generate.py',
+                                '<lyric_data_file_path>'])[1:])
 
     ## Length of training sequence
     seqLen = 30
 
-    ## Training observations
-    trainX = []
-
-    ## Training responses
-    trainY = []
-
-    ## Range to create training data
-    trainRange = range(len(lyricSeq) - seqLen)
-
-    for i in trainRange:
-        trainX.append(numSeq[i:i + seqLen])
-        trainY.append(numSeq[i + seqLen])
-
-    trainX = np.array(trainX)
-    trainX = trainX.reshape(list(trainX.shape) + [1])
-    trainX = trainX / float(len(words))
-    trainY = np_utils.to_categorical(trainY)
+    train.modelData(seqLen)
 
     ## Build generator model
     model = Sequential()
 
-    model.add(LSTM(256, input_shape = (trainX.shape[1], trainX.shape[2]),
-                   return_sequences = True))
+    model.add(LSTM(256, input_shape = (train.dataX.shape[1],
+                                       train.dataX.shape[2])))#,
+#                   return_sequences = True))
+
+#    model.add(Dropout(0.2))
+#    model.add(LSTM(256))
     model.add(Dropout(0.2))
-    model.add(LSTM(256))
-    model.add(Dropout(0.2))
-    model.add(Dense(trainY.shape[1], activation = 'softmax'))
+    model.add(Dense(train.dataY.shape[1], activation = 'softmax'))
 
     ## Model weights file
-    fName = 'weights-improvement-49-2.2582.hdf5'
+    fName = '1layer-weights-improvement-19-4.1462.hdf5'
+#    fName = 'weights-improvement-49-2.2582.hdf5'
 
     model.load_weights(fName)
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
@@ -93,14 +56,14 @@ def main():
     initNumSeq = []
 
     for word in initSeq:
-        initNumSeq.append(words.index(word))
+        initNumSeq.append(train.words.index(word))
 
     for i in range(10):
         ## Generation initialization for model
         genX = np.array(initNumSeq)
 
         genX = genX.reshape((1, genX.shape[0], 1))
-        genX = genX / float(len(words))
+        genX = genX / float(len(train.words))
 
         ## Predicted word
         pred = model.predict(genX, verbose = 0)
@@ -108,7 +71,7 @@ def main():
         ## Next word index
         nextI = np.argmax(pred)
 
-        genTxt += ' ' + words[nextI]
+        genTxt += ' ' + train.words[nextI]
         initNumSeq.append(nextI)
         initNumSeq = initNumSeq[1:]
 
