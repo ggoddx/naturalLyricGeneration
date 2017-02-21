@@ -26,28 +26,30 @@ def main():
     model = Sequential()
 
     model.add(LSTM(256, input_shape = (train.dataX.shape[1],
-                                       train.dataX.shape[2])))#,
-#                   return_sequences = True))
+                                       train.dataX.shape[2]),
+                   return_sequences = True))
 
-#    model.add(Dropout(0.2))
-#    model.add(LSTM(256))
+    model.add(Dropout(0.2))
+    model.add(LSTM(256))
     model.add(Dropout(0.2))
     model.add(Dense(train.dataY.shape[1], activation = 'softmax'))
 
     ## Model weights file
-    fName = '1layer-weights-improvement-19-4.1462.hdf5'
-#    fName = 'weights-improvement-49-2.2582.hdf5'
+#    fName = '1layer-weights-improvement-19-4.1462.hdf5'
+    fName = 'weights-improvement-49-2.2582.hdf5'
 
     model.load_weights(fName)
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
     ## Text to start generation
-#    initTxt = "you don't think i ain't gonna see questionmark endofline i'm too big and strong commachar got this deal for me endofline better get on up commachar 'cause i'm the boss"
+    initTxt = '''You don't think I ain't gonna see?
+I'm too big and strong, got this deal for me
+Better get on up, 'cause I'm the boss'''
 
-    initTxt = "oh baby commachar how you doing questionmark endofline you know i'm gonna cut right to the chase endofline some women were made but me commachar myself endofline i like to"
+#    initTxt = "oh baby commachar how you doing questionmark endofline you know i'm gonna cut right to the chase endofline some women were made but me commachar myself endofline i like to"
 
     ## Sequence for generation initialization
-    initSeq = t2ws(initTxt)
+    initSeq = Lyrics().getWordSeq(initTxt)
 
     ## Generated text
     genTxt = initTxt + ' |'
