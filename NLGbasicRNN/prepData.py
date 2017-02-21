@@ -11,7 +11,7 @@ class Lyrics:
     def __init__(self):
         return
 
-    ##  Builds word sequence from first song in the dataset
+    ## Builds word sequence from first song in the dataset
     #
     #  @param fileSpecs list
     #   list of variables needed to find file with classification data
@@ -32,12 +32,8 @@ class Lyrics:
         ## Song text
         lyrics = lyricData[colNames.index('lyrics')]
 
-        lyrics = lyrics.replace('\n', ' endofline ')
-        lyrics = lyrics.replace(',', ' commachar')
-        lyrics = lyrics.replace('?', ' questionmark')
-
         ## Word sequence from lyrics
-        lyricSeq = t2ws(lyrics)
+        lyricSeq = self.getWordSeq(lyrics)
 
         ## Word indicies
         words = list(set(lyricSeq))
@@ -52,6 +48,31 @@ class Lyrics:
         self.numSeq = numSeq
         self.words = words
 
+        return
+
+    ## Converts text into a word sequence
+    #  (changing non-word characters to words, so that model accounts for them)
+    #
+    #  @param text string
+    #   text to convert to word sequence
+    def getWordSeq(self, text):
+        text = text.replace('\n', ' endofline ')
+        text = text.replace(',', ' commachar')
+        text = text.replace('?', ' questionmark')
+
+        return t2ws(text)
+
+    ## Creates word sequences from a set of lyrics
+    #
+    #  @param group string
+    #   group of lyrics for which to create lyrics
+    #   (current options: year, artist, genre)
+    #
+    #  @param fileSpecs list
+    #   list of variables needed to find file with classification data
+    #   (currently ordered as [filename])
+    def lyrics2seqs(self, group, fileSpecs):
+        
         return
 
     ## To create data useable by LSTM RNN models
