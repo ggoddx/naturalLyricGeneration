@@ -66,17 +66,17 @@ def main():
     ## Build generator model
     model = Sequential()
 
-    model.add(LSTM(256, input_shape = (trainX.shape[1], trainX.shape[2]),
-                   return_sequences = True))
+    model.add(LSTM(256, input_shape = (trainX.shape[1], trainX.shape[2])))#,
+#                   return_sequences = True))
 
     model.add(Dropout(0.2))
-    model.add(LSTM(256))
-    model.add(Dropout(0.2))
+#    model.add(LSTM(256))
+#    model.add(Dropout(0.2))
     model.add(Dense(trainY.shape[1], activation = 'softmax'))
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
     ## Checkpoint file path
-    chkptFile = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+    chkptFile = "1layer-weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
 
     ## Checkpoint
     chkpt = ModelCheckpoint(chkptFile, monitor = 'loss', verbose = 1,
@@ -85,8 +85,11 @@ def main():
     ## Callbacks list
     cbs = [chkpt]
 
-    model.fit(trainX, trainY, nb_epoch = 50, batch_size = 64,
+    model.fit(trainX, trainY, nb_epoch = 20, batch_size = 128,
               callbacks = cbs)
+
+#    model.fit(trainX, trainY, nb_epoch = 50, batch_size = 64,
+#              callbacks = cbs)
 
     return
 
