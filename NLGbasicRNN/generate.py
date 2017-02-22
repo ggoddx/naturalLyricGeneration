@@ -4,9 +4,8 @@ from keras.models import Sequential
 from keras.preprocessing.text import text_to_word_sequence as t2ws
 from keras.utils import np_utils
 from prepData import Lyrics
-from sklearn.feature_extraction.text import CountVectorizer
 
-import csv, getSysArgs
+import getSysArgs
 import numpy as np
 
 
@@ -55,17 +54,13 @@ Better get on up, 'cause I'm the boss'''
     genTxt = initTxt + ' |'
 
     ## Numerical sequence
-    initNumSeq = []
-
-    for word in initSeq:
-        initNumSeq.append(train.words.index(word))
+    initNumSeq = train.getNumSeq(initSeq)
 
     for i in range(10):
         ## Generation initialization for model
         genX = np.array(initNumSeq)
 
-        genX = genX.reshape((1, genX.shape[0], 1))
-        genX = genX / float(len(train.words))
+        genX = train.normObs(genX, (1, genX.shape[0], 1))
 
         ## Predicted word
         pred = model.predict(genX, verbose = 0)
