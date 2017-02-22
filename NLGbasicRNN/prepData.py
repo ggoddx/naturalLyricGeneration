@@ -36,19 +36,28 @@ class Lyrics:
         lyricSeq = self.getWordSeq(lyrics)
 
         ## Word indicies
-        words = list(set(lyricSeq))
+        self.words = list(set(lyricSeq))
 
+        ## Numerical sequence from lyrics
+        numSeq = self.getNumSeq(lyricSeq)
+
+        self.lyricSeq = [lyricSeq]
+        self.numSeq = [numSeq]
+
+        return
+
+    ## Converts word sequence into a numerical sequence
+    #
+    #  @param wordSeq list
+    #   list for word sequence
+    def getNumSeq(self, wordSeq):
         ## Numerical sequence from lyrics
         numSeq = []
 
-        for word in lyricSeq:
-            numSeq.append(words.index(word))
+        for word in wordSeq:
+            numSeq.append(self.words.index(word))
 
-        self.lyricSeq = lyricSeq
-        self.numSeq = numSeq
-        self.words = words
-
-        return
+        return numSeq
 
     ## Converts text into a word sequence
     #  (changing non-word characters to words, so that model accounts for them)
@@ -64,16 +73,70 @@ class Lyrics:
 
     ## Creates word sequences from a set of lyrics
     #
-    #  @param group string
-    #   group of lyrics for which to create lyrics
+    #  @param groupType string
+    #   type of group of lyrics for which to create sequences
     #   (current options: year, artist, genre)
+    #
+    #  @param group string
+    #   the specific group of lyrics for which to create sequences
     #
     #  @param fileSpecs list
     #   list of variables needed to find file with classification data
     #   (currently ordered as [filename])
-    def lyrics2seqs(self, group, fileSpecs):
-        
+    def lyrics2seqs(self, groupType, group, fileSpecs):
+        ## File specifications
+        [fName] = fileSpecs
+
+        ## Open CSV file of lyrics
+        dataCSV = csv.reader(open(fName, 'rU'))
+
+        ## Column headers
+        colNames = dataCSV.next()
+
+        ## Lyrics of group
+        groupLyrics = []
+
+        ## Word sequences from different songs' lyrics
+        lyricSeq = []
+
+        for row in dataCSV:
+            ## Lyrics for one song
+            lyrics = row[colNames.index('lyrics')]
+
+            if row[colNames.index(groupType)] == group and lyrics != '':
+                groupLyrics.append(lyrics)
+                lyricSeq.append(self.getWordSeq(lyrics))
+
+        ## Word indicies
+        words = []
+
+        ## Numerical sequence from lyrics
+        numSeq = []
+
+        for song in lyricSeq:
+            for word in song:
+                if word not in words:
+                    words.append(word)
+
+                numSeq.append(words.index(word))
+
+        self.lyricSeq = lyricSeq
+        self.numSeq = numSeq
+        self.words = words
+
         return
+
+    ## Finalize and normalize numerical sequences for use with LSTM RNN model
+    #
+    #  @param dataX numpy array
+    #   observations array before normalization
+    #
+    #  @param shape list or tuple
+    #   shape needed for LSTM RNN model
+    def normObs(self, dataX, shape):
+        dataX = dataX.reshape(shape)
+
+        return dataX / float(len(self.words))
 
     ## To create data useable by LSTM RNN models
     #
@@ -86,16 +149,19 @@ class Lyrics:
         ## Responses
         dataY = []
 
-        ## Range to create training data
-        trainRange = range(len(self.lyricSeq) - seqLen)
+        ## Range of songs from word and number index sequences
+        songRange = range(len(self.lyricSeq))
 
-        for i in trainRange:
-            dataX.append(self.numSeq[i:i + seqLen])
-            dataY.append(self.numSeq[i + seqLen])
+        for i in songRange:
+            ## Range to create training data
+            trainRange = range(len(self.lyricSeq[i]) - seqLen)
+
+            for j in trainRange:
+                dataX.append(self.numSeq[i][j:j + seqLen])
+                dataY.append(self.numSeq[i][j + seqLen])
 
         dataX = np.array(dataX)
-        dataX = dataX.reshape(list(dataX.shape) + [1])
-        dataX = dataX / float(len(self.words))
+        dataX = self.normObs(dataX, list(dataX.shape) + [1])
         dataY = np_utils.to_categorical(dataY)
 
         self.dataX = dataX
