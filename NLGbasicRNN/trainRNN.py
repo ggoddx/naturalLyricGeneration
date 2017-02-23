@@ -11,8 +11,9 @@ def main():
     ## To gather training lyric data
     train = Lyrics()
 
-    train.firstSong(getSysArgs.usage(['generate.py',
-                                '<lyric_data_file_path>'])[1:])
+    train.lyrics2seqs('artist', 'disclosure',
+                      getSysArgs.usage(['generate.py',
+                                        '<lyric_data_file_path>'])[1:])
 
     ## Length of training sequence
     seqLen = 30
@@ -23,17 +24,17 @@ def main():
     model = Sequential()
 
     model.add(LSTM(256, input_shape = (train.dataX.shape[1],
-                                       train.dataX.shape[2])))#,
-#                   return_sequences = True))
+                                       train.dataX.shape[2]),
+                   return_sequences = True))
 
     model.add(Dropout(0.2))
-#    model.add(LSTM(256))
-#    model.add(Dropout(0.2))
+    model.add(LSTM(256))
+    model.add(Dropout(0.2))
     model.add(Dense(train.dataY.shape[1], activation = 'softmax'))
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
     ## Checkpoint file path
-    chkptFile = "1layer-weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+    chkptFile = "disclosure-2-weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
 
     ## Checkpoint
     chkpt = ModelCheckpoint(chkptFile, monitor = 'loss', verbose = 1,
@@ -42,11 +43,11 @@ def main():
     ## Callbacks list
     cbs = [chkpt]
 
-    model.fit(train.dataX, train.dataY, nb_epoch = 20, batch_size = 128,
-              callbacks = cbs)
-
-#    model.fit(train.dataX, train.dataY, nb_epoch = 50, batch_size = 64,
+#    model.fit(train.dataX, train.dataY, nb_epoch = 20, batch_size = 128,
 #              callbacks = cbs)
+
+    model.fit(train.dataX, train.dataY, nb_epoch = 50, batch_size = 64,
+              callbacks = cbs)
 
     return
 
