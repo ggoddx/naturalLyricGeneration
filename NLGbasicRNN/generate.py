@@ -13,8 +13,9 @@ def main():
     ## To gather training lyric data
     train = Lyrics()
 
-    train.firstSong(getSysArgs.usage(['generate.py',
-                                '<lyric_data_file_path>'])[1:])
+    train.lyrics2seqs('artist', 'disclosure',
+                      getSysArgs.usage(['generate.py',
+                                        '<lyric_data_file_path>'])[1:])
 
     ## Length of training sequence
     seqLen = 30
@@ -34,18 +35,21 @@ def main():
     model.add(Dense(train.dataY.shape[1], activation = 'softmax'))
 
     ## Model weights file
-#    fName = '1layer-weights-improvement-19-4.1462.hdf5'
-    fName = 'weights-improvement-49-2.2582.hdf5'
+    fName = 'disclosure-2-weights-improvement-49-0.7023.hdf5'
 
     model.load_weights(fName)
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
     ## Text to start generation
     initTxt = '''You don't think I ain't gonna see?
-I'm too big and strong, got this deal for me
+I'm too big and strong, made this way for me
 Better get on up, 'cause I'm the boss'''
 
-#    initTxt = "oh baby commachar how you doing questionmark endofline you know i'm gonna cut right to the chase endofline some women were made but me commachar myself endofline i like to"
+#    initTxt = '''I'll be giving up, oh
+#Home is where the heart is
+#And I gave it to you in a paper bag
+#Even though it's tarnished
+#'''
 
     ## Sequence for generation initialization
     initSeq = Lyrics().getWordSeq(initTxt)
