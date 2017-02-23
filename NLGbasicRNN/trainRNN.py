@@ -1,82 +1,40 @@
 from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense, Dropout, LSTM
 from keras.models import Sequential
-from keras.preprocessing.text import text_to_word_sequence as t2ws
 from keras.utils import np_utils
-from sklearn.feature_extraction.text import CountVectorizer
+from prepData import Lyrics
 
-import csv, getSysArgs
-import numpy as np
+import getSysArgs
 
 
 def main():
-    ## CSV file of lyrics
-    [fName] = getSysArgs.usage(['trainRNN.py',
-                                '<lyric_data_file_path>'])[1:]
+    ## To gather training lyric data
+    train = Lyrics()
 
-    ## Open CSV file of lyrics
-    dataCSV = csv.reader(open(fName, 'rU'))
-
-    ## Column headers
-    colNames = dataCSV.next()
-
-    ## One set of lyrics
-    lyricData = dataCSV.next()
-
-    ## Song text
-    lyrics = lyricData[colNames.index('lyrics')]
-
-    lyrics = lyrics.replace('\n', ' endofline ')
-    lyrics = lyrics.replace(',', ' commachar')
-    lyrics = lyrics.replace('?', ' questionmark')
-
-    ## Word sequence from lyrics
-    lyricSeq = t2ws(lyrics)
-
-    ## Word indicies
-    words = list(set(lyricSeq))
-
-    ## Numerical sequence from lyrics
-    numSeq = []
-
-    for word in lyricSeq:
-        numSeq.append(words.index(word))
+    train.lyrics2seqs('artist', 'disclosure',
+                      getSysArgs.usage(['generate.py',
+                                        '<lyric_data_file_path>'])[1:])
 
     ## Length of training sequence
     seqLen = 30
 
-    ## Training observations
-    trainX = []
-
-    ## Training responses
-    trainY = []
-
-    ## Range to create training data
-    trainRange = range(len(lyricSeq) - seqLen)
-
-    for i in trainRange:
-        trainX.append(numSeq[i:i + seqLen])
-        trainY.append(numSeq[i + seqLen])
-
-    trainX = np.array(trainX)
-    trainX = trainX.reshape(list(trainX.shape) + [1])
-    trainX = trainX / float(len(words))
-    trainY = np_utils.to_categorical(trainY)
+    train.modelData(seqLen)
 
     ## Build generator model
     model = Sequential()
 
-    model.add(LSTM(256, input_shape = (trainX.shape[1], trainX.shape[2]),
+    model.add(LSTM(256, input_shape = (train.dataX.shape[1],
+                                       train.dataX.shape[2]),
                    return_sequences = True))
 
     model.add(Dropout(0.2))
     model.add(LSTM(256))
     model.add(Dropout(0.2))
-    model.add(Dense(trainY.shape[1], activation = 'softmax'))
+    model.add(Dense(train.dataY.shape[1], activation = 'softmax'))
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
     ## Checkpoint file path
-    chkptFile = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+    chkptFile = "disclosure-2-weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
 
     ## Checkpoint
     chkpt = ModelCheckpoint(chkptFile, monitor = 'loss', verbose = 1,
@@ -85,7 +43,10 @@ def main():
     ## Callbacks list
     cbs = [chkpt]
 
-    model.fit(trainX, trainY, nb_epoch = 50, batch_size = 64,
+#    model.fit(train.dataX, train.dataY, nb_epoch = 20, batch_size = 128,
+#              callbacks = cbs)
+
+    model.fit(train.dataX, train.dataY, nb_epoch = 50, batch_size = 64,
               callbacks = cbs)
 
     return
