@@ -104,7 +104,7 @@ class Lyrics:
             lyrics = row[colNames.index('lyrics')]
 
             if row[colNames.index(groupType)] == group and lyrics != '':
-                groupLyrics.append(lyrics)
+                groupLyrics.append([lyrics])
                 lyricSeq.append(self.getWordSeq(lyrics))
 
         ## Word indicies
@@ -114,11 +114,16 @@ class Lyrics:
         numSeq = []
 
         for song in lyricSeq:
+            ## Numerical sequence for one song
+            songNS = []
+
             for word in song:
                 if word not in words:
                     words.append(word)
 
-                numSeq.append(words.index(word))
+                songNS.append(words.index(word))
+
+            numSeq.append(songNS)
 
         self.lyricSeq = lyricSeq
         self.numSeq = numSeq
