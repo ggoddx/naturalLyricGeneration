@@ -13,7 +13,7 @@ def main():
     ## To gather training lyric data
     train = Lyrics()
 
-    train.lyrics2seqs('artist', 'disclosure',
+    train.lyrics2seqs('year', '1999',
                       getSysArgs.usage(['generate.py',
                                         '<lyric_data_file_path>'])[1:])
 
@@ -35,7 +35,7 @@ def main():
     model.add(Dense(train.dataY.shape[1], activation = 'softmax'))
 
     ## Model weights file
-    fName = 'disclosure-2-weights-improvement-49-0.7023.hdf5'
+    fName = '1999-2-weights-improvement-49-3.5009.hdf5'
 
     model.load_weights(fName)
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
@@ -44,12 +44,6 @@ def main():
     initTxt = '''You don't think I ain't gonna see?
 I'm too big and strong, made this way for me
 Better get on up, 'cause I'm the boss'''
-
-#    initTxt = '''I'll be giving up, oh
-#Home is where the heart is
-#And I gave it to you in a paper bag
-#Even though it's tarnished
-#'''
 
     ## Sequence for generation initialization
     initSeq = Lyrics().getWordSeq(initTxt)
@@ -69,11 +63,11 @@ Better get on up, 'cause I'm the boss'''
         ## Predicted word
         pred = model.predict(genX, verbose = 0)
 
-        ## Next word index
-        nextI = np.argmax(pred)
+        ## Next word based on randomly choosing from word distribution
+        next = np.random.choice(train.words, p = pred[0])
 
-        genTxt += ' ' + train.words[nextI]
-        initNumSeq.append(nextI)
+        genTxt += ' ' + next
+        initNumSeq.append(train.words.index(next))
         initNumSeq = initNumSeq[1:]
 
     print genTxt
