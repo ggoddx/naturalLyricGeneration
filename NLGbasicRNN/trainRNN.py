@@ -11,9 +11,12 @@ def main():
     ## To gather training lyric data
     train = Lyrics()
 
-    train.lyrics2seqs('artist', 'disclosure',
-                      getSysArgs.usage(['generate.py',
-                                        '<lyric_data_file_path>'])[1:])
+    ## Specified group on which to train and lyric data file
+    [fName, groupType, group] = getSysArgs.usage(
+        ['trainRnn.py', '<lyric_data_file_path>', '<group_type>',
+         '<group_name>'])[1:]
+
+    train.lyrics2seqs(groupType, group, [fName])
 
     ## Length of training sequence
     seqLen = 30
@@ -34,7 +37,7 @@ def main():
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
     ## Checkpoint file path
-    chkptFile = "disclosure-2-weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+    chkptFile = group + "-2-weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
 
     ## Checkpoint
     chkpt = ModelCheckpoint(chkptFile, monitor = 'loss', verbose = 1,
@@ -43,8 +46,8 @@ def main():
     ## Callbacks list
     cbs = [chkpt]
 
-#    model.fit(train.dataX, train.dataY, nb_epoch = 20, batch_size = 128,
-#              callbacks = cbs)
+    print 'numpy array datatype X: ', train.dataX.dtype
+    print 'numpy array datatype Y: ', train.dataY.dtype
 
     model.fit(train.dataX, train.dataY, nb_epoch = 50, batch_size = 64,
               callbacks = cbs)
