@@ -1,5 +1,8 @@
+from keras.preprocessing.text import text_to_word_sequence as t2ws
+
 import csv, getSysArgs
 import numpy as np
+
 
 def main():
     ## CSV file of lyrics
@@ -11,11 +14,18 @@ def main():
     ## Column headers
     colNames = dataCSV.next()
 
-    ## To store song statistics
-    stats = [colNames[:-1] + ['lyricCharCt']]
+    ## To store song statistics (assumes lyrics are in right-most column)
+    stats = [colNames[:-1] + ['lyricCharCt', 'lyricWordCt', 'lyricVocabSize']]
 
     for row in dataCSV:
-        stats.append(row[:-1] + [len(row[-1])])
+        ## Lyrics for a song
+        lyrics = row[colNames.index('lyrics')]
+
+        ## Word sequence from song lyrics
+        lyricSeq = t2ws(lyrics)
+
+        stats.append(row[:-1] + [len(lyrics), len(lyricSeq),
+                                 len(set(lyricSeq))])
 
     ## File to write song statistics
     statsCSV = csv.writer(open('songStats.csv', 'wb', buffering = 0))
