@@ -4,53 +4,140 @@ from keras.models import Sequential
 from keras.utils import np_utils
 from prepData import Lyrics
 
-import getSysArgs
+import csv, getSysArgs
+import numpy as np
 
 
 def main():
-    ## To gather training lyric data
-    train = Lyrics()
-
-    ## Specified group on which to train and lyric data file
-    [fName, groupType, group] = getSysArgs.usage(
+    ## The specified group on which to train, lyric data, and GBs of memory
+    [fName, groupType, group, memGB] = getSysArgs.usage(
         ['trainRnn.py', '<lyric_data_file_path>', '<group_type>',
-         '<group_name>'])[1:]
-
-    train.lyrics2seqs(groupType, group, [fName])
+         '<group_name>', '<memory_size_limit_in_GB>'])[1:]
 
     ## Length of training sequence
     seqLen = 30
 
-    train.modelData(seqLen)
+    ## To gather training lyric data
+    train = Lyrics()
 
-    ## Build generator model
+    train.lyrics2seqs(groupType, group, [fName], seqLen)
+
+    ## Number of epochs for training
+    epochs = 50
+
+    ## Vocabulary size
+    vocabSize = len(train.words)
+
+    ## Training data chunk size
+    #  (size chosen to be the number of data points that can fit into the
+    #   user-specified memory limit)
+    chunkSize = int(memGB) * 1073741824 / ((seqLen + vocabSize) * 8)
+
+    ## Range of epochs
+    epochRng = range(epochs)
+
+    ## Trained weights file from previous iteration
+    prevCP = ''
+
+    ## Number of training datapoints for model
+    dataPts = 0
+
+    for song in train.lyricSeq:
+        dataPts += len(song) - seqLen
+
+    ## Chunks for training model
+    chunks = [chunkSize] * (dataPts / chunkSize) + [dataPts % chunkSize]
+
+    if chunks[-1] == 0:
+        chunks = chunks[:-1]
+
+    ## Number of chunks
+    numChunks = len(chunks)
+
+    ## Vocabulary size
+#    vocabSize = len(train.words)
+
+    ## Build model
     model = Sequential()
 
-    model.add(LSTM(256, input_shape = (train.dataX.shape[1],
-                                       train.dataX.shape[2]),
-                   return_sequences = True))
+    model.add(LSTM(256, input_shape = (seqLen, 1),
+                   return_sequences = True))  #1st layer
 
     model.add(Dropout(0.2))
-    model.add(LSTM(256))
+    model.add(LSTM(256))  #2nd layer
     model.add(Dropout(0.2))
-    model.add(Dense(train.dataY.shape[1], activation = 'softmax'))
+    model.add(Dense(vocabSize, activation = 'softmax'))
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
-    ## Checkpoint file path
-    chkptFile = group + "-2-weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+    ## Loss Data
+    losses = [['Step', 'Loss']]
 
-    ## Checkpoint
-    chkpt = ModelCheckpoint(chkptFile, monitor = 'loss', verbose = 1,
-                            save_best_only = True, mode = 'min')
+    ## Counter for loss steps
+    lossC = 1
 
-    ## Callbacks list
-    cbs = [chkpt]
+    ## Lowest loss from model training
+    minLoss = float('inf')
 
-    print 'numpy array datatype X: ', train.dataX.dtype
-    print 'numpy array datatype Y: ', train.dataY.dtype
+    for i in epochRng:
+        print 'Epoch', i + 1, 'of', epochs
 
-    model.fit(train.dataX, train.dataY, nb_epoch = 50, batch_size = 64,
-              callbacks = cbs)
+        ## Chunk counter
+        chunkC = 0
+
+        ## Position in lyric sequence
+        seqI = 0
+
+        ## Index of song in review
+        songI = 0
+
+        for chunk in chunks:
+            print 'chunk', chunkC + 1, 'of', numChunks
+
+            ## Observations
+            dataX = []
+
+            ## Responses
+            dataY = []
+
+            ## Number range the size of the given chunk
+            chunkRng = range(chunk)
+
+            for j in chunkRng:
+                if seqI >= len(train.lyricSeq[songI]) - seqLen:
+                    songI += 1
+                    seqI = 0
+
+                dataX.append(train.numSeq[songI][seqI:seqI + seqLen])
+                dataY.append([0] * vocabSize)
+                dataY[-1][train.numSeq[songI][seqI + seqLen]] = 1
+                seqI += 1
+
+            dataX = train.normObs(np.array(dataX), (chunk, seqLen, 1))
+            dataY = np.array(dataY)
+
+            ## Train model with datapoints and store callbacks history
+            cbHist = model.fit(dataX, dataY, nb_epoch = 1, batch_size = 64)
+
+            ## Loss of current chunk's training
+            currLoss = cbHist.history['loss'][0]
+
+            if currLoss < minLoss:
+                ## Checkpoint filename
+                fNameCP = "%s-weights-improvement-epoch_%dof%d-chunk_%dof%d-%.4f.hdf5" % (group, i + 1, epochs, chunkC + 1, numChunks, currLoss)
+
+                model.save(fNameCP)
+                minLoss = currLoss
+
+            losses.append([lossC, currLoss])
+            lossC += 1
+            chunkC += 1
+
+        print 'end of epoch', i + 1
+
+    ## File to write loss data
+    lossCSV = csv.writer(open('losses.csv', 'wb', buffering = 0))
+
+    lossCSV.writerows(losses)
 
     return
 
