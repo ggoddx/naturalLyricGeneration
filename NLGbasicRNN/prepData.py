@@ -106,7 +106,7 @@ class Lyrics:
             if (row[colNames.index(groupType)] == group and
                 len(t2ws(lyrics)) > 1):
                 lyricSeq.append(
-                    ['ppaadd'] * (seqLen - 1) + self.getWordSeq(lyrics))
+                    ['ppaadd'] * (seqLen - 1) + self.getWordSeq(lyrics) + ['endofsong'])
 
         ## Word indicies
         words = []
