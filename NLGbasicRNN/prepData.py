@@ -83,7 +83,10 @@ class Lyrics:
     #  @param fileSpecs list
     #   list of variables needed to find file with classification data
     #   (currently ordered as [filename])
-    def lyrics2seqs(self, groupType, group, fileSpecs):
+    #
+    #  @param seqLen int
+    #   length of sequences for model training
+    def lyrics2seqs(self, groupType, group, fileSpecs, seqLen):
         ## File specifications
         [fName] = fileSpecs
 
@@ -93,9 +96,6 @@ class Lyrics:
         ## Column headers
         colNames = dataCSV.next()
 
-        ## Lyrics of group
-        groupLyrics = []
-
         ## Word sequences from different songs' lyrics
         lyricSeq = []
 
@@ -103,9 +103,10 @@ class Lyrics:
             ## Lyrics for one song
             lyrics = row[colNames.index('lyrics')]
 
-            if row[colNames.index(groupType)] == group and lyrics != '':
-                groupLyrics.append([lyrics])
-                lyricSeq.append(self.getWordSeq(lyrics))
+            if (row[colNames.index(groupType)] == group and
+                len(t2ws(lyrics)) > 1):
+                lyricSeq.append(
+                    ['ppaadd'] * (seqLen - 1) + self.getWordSeq(lyrics))
 
         ## Word indicies
         words = []
@@ -125,6 +126,9 @@ class Lyrics:
 
             numSeq.append(songNS)
 
+        print words
+        print 'number of', group, 'songs: ', len(lyricSeq), len(numSeq)
+        print 'vocab count: ', len(words)
         self.lyricSeq = lyricSeq
         self.numSeq = numSeq
         self.words = words
@@ -165,6 +169,7 @@ class Lyrics:
                 dataX.append(self.numSeq[i][j:j + seqLen])
                 dataY.append(self.numSeq[i][j + seqLen])
 
+        print 'number of training points: ', len(dataX)
         dataX = np.array(dataX)
         dataX = self.normObs(dataX, list(dataX.shape) + [1])
         dataY = np_utils.to_categorical(dataY)
