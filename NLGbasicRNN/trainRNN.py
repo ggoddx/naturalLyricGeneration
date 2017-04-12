@@ -123,7 +123,7 @@ def main():
 
             if currLoss < minLoss:
                 ## Checkpoint filename
-                fNameCP = "%s-weights-improvement-epoch_%dof%d-chunk_%dof%d-%.4f.hdf5" % (group, i + 1, epochs, chunkC + 1, numChunks, currLoss)
+                fNameCP = "%s-weights-improvement-%.4f-epoch_%dof%d-chunk_%dof%d.hdf5" % (group, currLoss, i + 1, epochs, chunkC + 1, numChunks)
 
                 model.save(fNameCP)
                 minLoss = currLoss
