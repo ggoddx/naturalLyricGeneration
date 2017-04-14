@@ -11,41 +11,6 @@ class Lyrics:
     def __init__(self):
         return
 
-    ## Builds word sequence from first song in the dataset
-    #
-    #  @param fileSpecs list
-    #   list of variables needed to find file with classification data
-    #   (currently ordered as [filename])
-    def firstSong(self, fileSpecs):
-        ## File specifications
-        [fName] = fileSpecs
-
-        ## Open CSV file of lyrics
-        dataCSV = csv.reader(open(fName, 'rU'))
-
-        ## Column headers
-        colNames = dataCSV.next()
-
-        ## First song in dataset
-        lyricData = dataCSV.next()
-
-        ## Song text
-        lyrics = lyricData[colNames.index('lyrics')]
-
-        ## Word sequence from lyrics
-        lyricSeq = self.getWordSeq(lyrics)
-
-        ## Word indicies
-        self.words = list(set(lyricSeq))
-
-        ## Numerical sequence from lyrics
-        numSeq = self.getNumSeq(lyricSeq)
-
-        self.lyricSeq = [lyricSeq]
-        self.numSeq = [numSeq]
-
-        return
-
     ## Converts word sequence into a numerical sequence
     #
     #  @param wordSeq list
@@ -55,7 +20,7 @@ class Lyrics:
         numSeq = []
 
         for word in wordSeq:
-            numSeq.append(self.words.index(word))
+            numSeq.append(self.words[word])
 
         return numSeq
 
@@ -96,42 +61,49 @@ class Lyrics:
         ## Column headers
         colNames = dataCSV.next()
 
+        ## Group column index
+        groupI = colNames.index(groupType)
+
+        ## Lyric text column index
+        lyricI = colNames.index('lyrics')
+
         ## Word sequences from different songs' lyrics
-        lyricSeq = []
+        self.lyricSeq = []
+
+        ## Word indicies
+        self.words = {}
+
+        ## Counter for word indicies
+        wrdC = 0
 
         for row in dataCSV:
             ## Lyrics for one song
-            lyrics = row[colNames.index('lyrics')]
+            lyrics = row[lyricI]
 
-            if (row[colNames.index(groupType)] == group and
-                len(t2ws(lyrics)) > 1):
-                lyricSeq.append(
-                    ['ppaadd'] * (seqLen - 1) + self.getWordSeq(lyrics) + ['endofsong'])
+            if (row[groupI] == group and len(t2ws(lyrics)) > 1):
+                ## Lyric sequence of song (with padding and end-of-song marker)
+                seq = (['ppaadd'] * (seqLen - 1) + self.getWordSeq(lyrics)
+                       + ['endofsong'])
 
-        ## Word indicies
-        words = []
+                for word in seq:
+                    if word not in self.words:
+                        self.words[word] = wrdC
+                        wrdC += 1
+
+                self.lyricSeq.append(seq)
 
         ## Numerical sequence from lyrics
-        numSeq = []
+        self.numSeq = []#self.getNumSeq(self.lyricSeq)
 
-        for song in lyricSeq:
+        for song in self.lyricSeq:
             ## Numerical sequence for one song
-            songNS = []
+            songNS = self.getNumSeq(song)
 
-            for word in song:
-                if word not in words:
-                    words.append(word)
+            self.numSeq.append(songNS)
 
-                songNS.append(words.index(word))
-
-            numSeq.append(songNS)
-
-        print words
-        print 'number of', group, 'songs: ', len(lyricSeq), len(numSeq)
-        print 'vocab count: ', len(words)
-        self.lyricSeq = lyricSeq
-        self.numSeq = numSeq
-        self.words = words
+        print self.words
+        print 'number of', group, 'songs: ', len(self.lyricSeq), len(self.numSeq)
+        print 'vocab count: ', len(self.words.keys())
 
         return
 
@@ -146,35 +118,3 @@ class Lyrics:
         dataX = dataX.reshape(shape)
 
         return dataX / float(len(self.words))
-
-    ## To create data useable by LSTM RNN models
-    #
-    #  @param seqLen int
-    #   The number of words in sequence used for prediction
-    def modelData(self, seqLen):
-        ## Observations
-        dataX = []
-
-        ## Responses
-        dataY = []
-
-        ## Range of songs from word and number index sequences
-        songRange = range(len(self.lyricSeq))
-
-        for i in songRange:
-            ## Range to create training data
-            trainRange = range(len(self.lyricSeq[i]) - seqLen)
-
-            for j in trainRange:
-                dataX.append(self.numSeq[i][j:j + seqLen])
-                dataY.append(self.numSeq[i][j + seqLen])
-
-        print 'number of training points: ', len(dataX)
-        dataX = np.array(dataX)
-        dataX = self.normObs(dataX, list(dataX.shape) + [1])
-        dataY = np_utils.to_categorical(dataY)
-
-        self.dataX = dataX
-        self.dataY = dataY
-
-        return
