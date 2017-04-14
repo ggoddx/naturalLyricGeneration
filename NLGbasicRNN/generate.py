@@ -77,13 +77,13 @@ def main():
 
     for word in seedSeq:
         if word in train.words:
-            seedNS.append(train.words.index(word))
+            seedNS.append(train.words[word])
         else:  #use most-likely word if seed word not in vocabulary
             seedNS.append(
                 np.argmax(
                     model.predict(
                         train.normObs(
-                            np.array([train.words.index('ppaadd')]
+                            np.array([train.words['ppaadd']]
                                      * (seqLen - len(seedNS)) + seedNS,
                                      dtype = np.float64),
                             (1, seqLen, 1)), verbose = 0)))
@@ -98,11 +98,11 @@ def main():
         ## Word-prediction distribution
         pred = model.predict(genX, verbose = 0)
 
-        ## Next word indexbased on randomly choosing from word distribution
-        next = np.random.choice(len(train.words), p = pred[0])
+        ## Next word index based on randomly choosing from word distribution
+        next = np.random.choice(train.words.keys(), p = pred[0])
 
-        genTxt += ' ' + train.words[next]
-        seedNS.append(next)
+        genTxt += ' ' + next
+        seedNS.append(train.words[next])
         seedNS = seedNS[1:]
 
     genTxt = genTxt.replace(' endofline ', '\n')
