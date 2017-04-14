@@ -5,70 +5,109 @@ from keras.preprocessing.text import text_to_word_sequence as t2ws
 from keras.utils import np_utils
 from prepData import Lyrics
 
-import getSysArgs
+import csv, getSysArgs
 import numpy as np
 
 
 def main():
-    ## To gather training lyric data
-    train = Lyrics()
+    ## The specified group from which to generate lyrics and lyric data
+    [fName, groupType, group, seedFile] = getSysArgs.usage(
+        ['generate.py', '<lyric_data_file_path>', '<group_type>',
+         '<group_name>', '<seed_lyrics_file_path>'])[1:]
 
-    train.lyrics2seqs('year', '1999',
-                      getSysArgs.usage(['generate.py',
-                                        '<lyric_data_file_path>'])[1:])
+    ## Load in seed lyrics
+    seed = open(seedFile, 'rU')
+
+    ## Seed lyrics
+    seedLyrics = ''
+
+    for line in seed:
+        seedLyrics += line
+
+    if seedLyrics[-1] == '\n':  #remove newline char if last char in lyrics
+        seedLyrics = seedLyrics[:-1]
+
+    ## Open CSV tracking the best model filenames for various groups
+    bestModels = csv.reader(open('bestModels.csv', 'rU'))
+
+    ## Filename of trained model
+    modelFile = ''
+
+    for row in bestModels:  #assumes 1st and 2nd cols are groupType and group
+        if row[:2] == [groupType, group]:
+            modelFile = row[2]
+            break
+
+    if modelFile == '':
+        print 'No model has been trained for the', groupType, group, 'yet'
+        return
 
     ## Length of training sequence
     seqLen = 30
 
-    train.modelData(seqLen)
+    ## To gather training lyric data
+    train = Lyrics()
+
+    ## Seed lyric sequence
+    seedSeq = train.getWordSeq(seedLyrics)
+
+    seedSeq = ['ppaadd'] * (seqLen - len(seedSeq)) + seedSeq
+
+    if len(seedSeq) < 1:
+        print 'Seed lyrics require at least one word\nGiven seed lyrics:'
+        print seedLyrics
+        return
+
+    train.lyrics2seqs(groupType, group, [fName], seqLen)  #!! has endofsong
 
     ## Build generator model
     model = Sequential()
 
-    model.add(LSTM(256, input_shape = (train.dataX.shape[1],
-                                       train.dataX.shape[2]),
-                   return_sequences = True))
-
+    model.add(LSTM(256, input_shape = (seqLen, 1), return_sequences = True)) #1
     model.add(Dropout(0.2))
-    model.add(LSTM(256))
+    model.add(LSTM(256))  #2nd layer
     model.add(Dropout(0.2))
-    model.add(Dense(train.dataY.shape[1], activation = 'softmax'))
+    model.add(Dense(len(train.words), activation = 'softmax'))
 
-    ## Model weights file
-    fName = '1999-2-weights-improvement-49-3.5009.hdf5'
-
-    model.load_weights(fName)
+    model.load_weights(modelFile)
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
-    ## Text to start generation
-    initTxt = '''You don't think I ain't gonna see?
-I'm too big and strong, made this way for me
-Better get on up, 'cause I'm the boss'''
+    ## Seed numerical sequence
+    seedNS = []
 
-    ## Sequence for generation initialization
-    initSeq = Lyrics().getWordSeq(initTxt)
+    for word in seedSeq:
+        if word in train.words:
+            seedNS.append(train.words.index(word))
+        else:  #use most-likely word if seed word not in vocabulary
+            seedNS.append(
+                np.argmax(
+                    model.predict(
+                        train.normObs(
+                            np.array([train.words.index('ppaadd')]
+                                     * (seqLen - len(seedNS)) + seedNS,
+                                     dtype = np.float64),
+                            (1, seqLen, 1)), verbose = 0)))
 
     ## Generated text
-    genTxt = initTxt + ' |'
-
-    ## Numerical sequence
-    initNumSeq = train.getNumSeq(initSeq)
+    genTxt = seedLyrics + ' |'
 
     for i in range(10):
         ## Generation initialization for model
-        genX = np.array(initNumSeq)
+        genX = train.normObs(np.array(seedNS, dtype = np.float64), (1, seqLen, 1))
 
-        genX = train.normObs(genX, (1, genX.shape[0], 1))
-
-        ## Predicted word
+        ## Word-prediction distribution
         pred = model.predict(genX, verbose = 0)
 
-        ## Next word based on randomly choosing from word distribution
-        next = np.random.choice(train.words, p = pred[0])
+        ## Next word indexbased on randomly choosing from word distribution
+        next = np.random.choice(len(train.words), p = pred[0])
 
-        genTxt += ' ' + next
-        initNumSeq.append(train.words.index(next))
-        initNumSeq = initNumSeq[1:]
+        genTxt += ' ' + train.words[next]
+        seedNS.append(next)
+        seedNS = seedNS[1:]
+
+    genTxt = genTxt.replace(' endofline ', '\n')
+    genTxt = genTxt.replace(' commachar', ',')
+    genTxt = genTxt.replace(' questionmark', '?')
 
     print genTxt
 
