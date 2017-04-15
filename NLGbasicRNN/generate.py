@@ -52,6 +52,7 @@ def main():
     seedSeq = train.getWordSeq(seedLyrics)
 
     seedSeq = ['ppaadd'] * (seqLen - len(seedSeq)) + seedSeq
+    seedSeq = seedSeq[len(seedSeq) - seqLen:]
 
     if len(seedSeq) < 1:
         print 'Seed lyrics require at least one word\nGiven seed lyrics:'
@@ -91,15 +92,18 @@ def main():
     ## Generated text
     genTxt = seedLyrics + ' |'
 
-    for i in range(10):
+    for i in range(200):
         ## Generation initialization for model
         genX = train.normObs(np.array(seedNS, dtype = np.float64), (1, seqLen, 1))
 
         ## Word-prediction distribution
         pred = model.predict(genX, verbose = 0)
 
-        ## Next word index based on randomly choosing from word distribution
+        ## Next word based on randomly choosing from word distribution
         next = np.random.choice(train.words.keys(), p = pred[0])
+
+        if next == 'endofsong':
+            break
 
         genTxt += ' ' + next
         seedNS.append(train.words[next])
