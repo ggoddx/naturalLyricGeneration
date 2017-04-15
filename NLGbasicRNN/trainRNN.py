@@ -1,10 +1,11 @@
+from __future__ import print_function
 from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense, Dropout, LSTM
 from keras.models import Sequential
 from keras.utils import np_utils
 from prepData import Lyrics
 
-import csv, getSysArgs
+import csv, getSysArgs, time
 import numpy as np
 
 
@@ -74,7 +75,7 @@ def main():
     minLoss = float('inf')
 
     for i in epochRng:
-        print 'Epoch', i + 1, 'of', epochs
+        print("Epoch %d of %d" % (i + 1, epochs))
 
         ## Chunk counter
         chunkC = 0
@@ -86,8 +87,10 @@ def main():
         songI = 0
 
         for chunk in chunks:
-            print 'chunk', chunkC + 1, 'of', numChunks
-            print 'starting at song', songI, 'of', len(train.lyricSeq), 'at word', seqI, '/', len(train.lyricSeq[songI])
+            print("chunk %d of %d" % (chunkC + 1, numChunks))
+            print("starting at song %d of %d at word %d/%d"
+                  % (songI, len(train.lyricSeq), seqI,
+                     len(train.lyricSeq[songI])))
 
             ## Observations
             dataX = []
@@ -98,7 +101,13 @@ def main():
             ## Number range the size of the given chunk
             chunkRng = range(chunk)
 
+            ## Starting time
+            ti = time.time()
+
             for j in chunkRng:
+                print("datapoint %d/%d %ds" % (j + 1, chunk, time.time() - ti),
+                      end = '\r')
+
                 if seqI >= len(train.lyricSeq[songI]) - seqLen:
                     songI += 1
                     seqI = 0
@@ -108,10 +117,13 @@ def main():
                 dataY[-1][train.numSeq[songI][seqI + seqLen]] = 1
                 seqI += 1
 
+            print('\n')
+            ti = time.time()
             dataX = train.normObs(np.array(dataX, dtype = np.float64),
                                   (chunk, seqLen, 1))
 
             dataY = np.array(dataY, dtype = np.float64)
+            print("numpy arrays created in %d seconds" % (time.time() - ti))
 
             ## Train model with datapoints and store callbacks history
             cbHist = model.fit(dataX, dataY, nb_epoch = 1, batch_size = 64)
@@ -130,7 +142,7 @@ def main():
             lossC += 1
             chunkC += 1
 
-        print 'end of epoch', i + 1
+        print("end of epoch %d" % (i + 1))
 
     ## File to write loss data
     lossCSV = csv.writer(open('losses.csv', 'wb', buffering = 0))
