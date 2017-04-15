@@ -54,15 +54,10 @@ def main():
     ## Number of chunks
     numChunks = len(chunks)
 
-    ## Vocabulary size
-#    vocabSize = len(train.words)
-
     ## Build model
     model = Sequential()
 
-    model.add(LSTM(256, input_shape = (seqLen, 1),
-                   return_sequences = True))  #1st layer
-
+    model.add(LSTM(256, input_shape = (seqLen, 1), return_sequences = True)) #1
     model.add(Dropout(0.2))
     model.add(LSTM(256))  #2nd layer
     model.add(Dropout(0.2))
@@ -92,6 +87,7 @@ def main():
 
         for chunk in chunks:
             print 'chunk', chunkC + 1, 'of', numChunks
+            print 'starting at song', songI, 'of', len(train.lyricSeq), 'at word', seqI, '/', len(train.lyricSeq[songI])
 
             ## Observations
             dataX = []
@@ -112,8 +108,10 @@ def main():
                 dataY[-1][train.numSeq[songI][seqI + seqLen]] = 1
                 seqI += 1
 
-            dataX = train.normObs(np.array(dataX), (chunk, seqLen, 1))
-            dataY = np.array(dataY)
+            dataX = train.normObs(np.array(dataX, dtype = np.float64),
+                                  (chunk, seqLen, 1))
+
+            dataY = np.array(dataY, dtype = np.float64)
 
             ## Train model with datapoints and store callbacks history
             cbHist = model.fit(dataX, dataY, nb_epoch = 1, batch_size = 64)
