@@ -64,6 +64,12 @@ class Lyrics:
         ## Group column index
         groupI = colNames.index(groupType)
 
+        ## Open CSV file with language of song
+        langCSV = csv.reader(open('songStats_20170415.csv', 'rU'))
+
+        ## Language column index
+        langI = langCSV.next().index('lang')
+
         ## Lyric text column index
         lyricI = colNames.index('lyrics')
 
@@ -80,7 +86,8 @@ class Lyrics:
             ## Lyrics for one song
             lyrics = row[lyricI]
 
-            if (row[groupI] == group and len(t2ws(lyrics)) > 1):
+            if (row[groupI] == group and len(t2ws(lyrics)) > 1 and
+                langCSV.next()[langI] == 'en'):
                 ## Lyric sequence of song (with padding and end-of-song marker)
                 seq = (['ppaadd'] * (seqLen - 1) + self.getWordSeq(lyrics)
                        + ['endofsong'])
