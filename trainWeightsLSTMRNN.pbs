@@ -1,19 +1,23 @@
-#!/bin/sh                                                                                                                                              
+#!/bin/sh                                                                                                                     
 
-#PBS -N trainWeightsLSTMRNN                                                                                                                            
+#PBS -N trainWeightsLSTMRNN                                                                                                   
 
-#PBS -M ggoddx@umich.edu                                                                                                                               
-#PBS -m abe                                                                                                                                            
+#PBS -M ggoddx@umich.edu                                                                                                      
+#PBS -m abe                                                                                                                   
 
-#PBS -l nodes=1:gpus=1,mem=32gb,walltime=24:00:00                                                                                                      
-#PBS -j oe                                                                                                                                             
-#PBS -V                                                                                                                                                
+#PBS -l nodes=1:gpus=1,mem=32gb,walltime=100:00:00                                                                            
+#PBS -j oe                                                                                                                    
+#PBS -V                                                                                                                       
 
-#PBS -A si696w17_fluxg                                                                                                                                 
-#PBS -q fluxg                                                                                                                                          
-#PBS -l qos=flux                                                                                                                                       
+#PBS -A si696w17_fluxg                                                                                                        
+#PBS -q fluxg                                                                                                                 
+#PBS -l qos=flux                                                                                                              
 
 PBS_O_WORKDIR=/home/ggoddx/si696
 cd $PBS_O_WORKDIR
 
-python trainRNN.py lyrics.csv genre Folk 7
+module load cuda/8.0.44
+module load cudnn/8.0-v5.1
+source ../tensorflow/bin/activate
+
+python trainRNN.py lyrics.csv genre Folk 16
