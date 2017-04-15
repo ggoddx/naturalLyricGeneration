@@ -83,11 +83,13 @@ class Lyrics:
         wrdC = 0
 
         for row in dataCSV:
+            ## Row from language file
+            langRow = langCSV.next()
+
             ## Lyrics for one song
             lyrics = row[lyricI]
 
-            if (row[groupI] == group and len(t2ws(lyrics)) > 1 and
-                langCSV.next()[langI] == 'en'):
+            if (row[groupI] == group and langRow[langI] == 'en'):
                 ## Lyric sequence of song (with padding and end-of-song marker)
                 seq = (['ppaadd'] * (seqLen - 1) + self.getWordSeq(lyrics)
                        + ['endofsong'])
