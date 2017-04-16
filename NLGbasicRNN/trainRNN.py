@@ -3,6 +3,7 @@ from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense, Dropout, LSTM
 from keras.models import Sequential
 from keras.utils import np_utils
+from pickle import dump
 from prepData import Lyrics
 
 import csv, getSysArgs, time
@@ -22,6 +23,7 @@ def main():
     train = Lyrics()
 
     train.lyrics2seqs(groupType, group, [fName], seqLen)
+    dump(train, open('./seqs/' + groupType + '-' + group + '-seq.pkl', 'wb'))
 
     ## Number of epochs for training
     epochs = 50
@@ -65,6 +67,60 @@ def main():
     model.add(Dense(vocabSize, activation = 'softmax'))
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
 
+    ## Chunk counter
+    chunkC = 0
+
+    ## Filename for datapoints
+    dpFname = "./datapoints/%s-%s_chunk_%dof%d.npz"
+
+    ## Position in lyric sequence
+    seqI = 0
+
+    ## Index of song in review
+    songI = 0
+
+    for chunk in chunks:
+        print("chunk %d of %d" % (chunkC + 1, numChunks))
+        print("starting at song %d of %d at word %d/%d"
+              % (songI, len(train.lyricSeq), seqI, len(train.lyricSeq[songI])))
+
+        ## Observations
+        dataX = []
+
+        ## Responses
+        dataY = []
+
+        ## Number range the size of the given chunk
+        chunkRng = range(chunk)
+
+        ## Starting time
+        ti = time.time()
+
+        for i in chunkRng:
+            print("datapoint %d/%d %ds" % (i + 1, chunk, time.time() - ti),
+                  end = '\r')
+
+            if seqI >= len(train.lyricSeq[songI]) - seqLen:
+                songI += 1
+                seqI = 0
+
+            dataX.append(train.numSeq[songI][seqI:seqI + seqLen])
+            dataY.append([0] * vocabSize)
+            dataY[-1][train.numSeq[songI][seqI + seqLen]] = 1
+            seqI += 1
+
+        print('\n')
+        ti = time.time()
+        dataX = train.normObs(np.array(dataX, dtype = np.float64),
+                              (chunk, seqLen, 1))
+
+        dataY = np.array(dataY, dtype = np.float64)
+        print("numpy arrays created in %d seconds" % (time.time() - ti))
+        np.savez(dpFname % (groupType, group, chunkC + 1, numChunks),
+                 X = dataX, Y = dataY)
+
+        chunkC += 1
+
     ## Loss Data
     losses = [['Step', 'Loss']]
 
@@ -76,64 +132,24 @@ def main():
 
     for i in epochRng:
         print("Epoch %d of %d" % (i + 1, epochs))
-
-        ## Chunk counter
         chunkC = 0
-
-        ## Position in lyric sequence
-        seqI = 0
-
-        ## Index of song in review
-        songI = 0
 
         for chunk in chunks:
             print("chunk %d of %d" % (chunkC + 1, numChunks))
-            print("starting at song %d of %d at word %d/%d"
-                  % (songI, len(train.lyricSeq), seqI,
-                     len(train.lyricSeq[songI])))
-
-            ## Observations
-            dataX = []
-
-            ## Responses
-            dataY = []
-
-            ## Number range the size of the given chunk
-            chunkRng = range(chunk)
-
-            ## Starting time
             ti = time.time()
-
-            for j in chunkRng:
-                print("datapoint %d/%d %ds" % (j + 1, chunk, time.time() - ti),
-                      end = '\r')
-
-                if seqI >= len(train.lyricSeq[songI]) - seqLen:
-                    songI += 1
-                    seqI = 0
-
-                dataX.append(train.numSeq[songI][seqI:seqI + seqLen])
-                dataY.append([0] * vocabSize)
-                dataY[-1][train.numSeq[songI][seqI + seqLen]] = 1
-                seqI += 1
-
-            print('\n')
-            ti = time.time()
-            dataX = train.normObs(np.array(dataX, dtype = np.float64),
-                                  (chunk, seqLen, 1))
-
-            dataY = np.array(dataY, dtype = np.float64)
-            print("numpy arrays created in %d seconds" % (time.time() - ti))
+            data = np.load(dpFname % (groupType, group, chunkC + 1, numChunks))
+            print("chunk loaded in %d seconds" % (time.time() - ti))
 
             ## Train model with datapoints and store callbacks history
-            cbHist = model.fit(dataX, dataY, nb_epoch = 1, batch_size = 64)
+            cbHist = model.fit(data['X'], data['Y'], epochs = 1,
+                               batch_size = 64)
 
             ## Loss of current chunk's training
             currLoss = cbHist.history['loss'][0]
 
             if currLoss < minLoss:
                 ## Checkpoint filename
-                fNameCP = "%s-weights-improvement-%.4f-epoch_%dof%d-chunk_%dof%d.hdf5" % (group, currLoss, i + 1, epochs, chunkC + 1, numChunks)
+                fNameCP = "./weights/%s-weights-improvement-%.4f-epoch_%dof%d-chunk_%dof%d.hdf5" % (group, currLoss, i + 1, epochs, chunkC + 1, numChunks)
 
                 model.save(fNameCP)
                 minLoss = currLoss
