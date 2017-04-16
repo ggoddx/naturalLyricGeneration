@@ -116,8 +116,9 @@ def main():
 
         dataY = np.array(dataY, dtype = np.float64)
         print("numpy arrays created in %d seconds" % (time.time() - ti))
-        np.savez(dpFname % (groupType, group, chunkC + 1, numChunks),
-                 X = dataX, Y = dataY)
+        np.savez_compressed(
+            dpFname % (groupType, group, chunkC + 1, numChunks),
+            X = dataX, Y = dataY)
 
         chunkC += 1
 
