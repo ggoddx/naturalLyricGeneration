@@ -1,8 +1,7 @@
 from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense, Dropout, LSTM
 from keras.models import Sequential
-from keras.preprocessing.text import text_to_word_sequence as t2ws
-from keras.utils import np_utils
+from pickle import load
 from prepData import Lyrics
 
 import csv, getSysArgs
@@ -11,9 +10,9 @@ import numpy as np
 
 def main():
     ## The specified group from which to generate lyrics and lyric data
-    [fName, groupType, group, seedFile] = getSysArgs.usage(
-        ['generate.py', '<lyric_data_file_path>', '<group_type>',
-         '<group_name>', '<seed_lyrics_file_path>'])[1:]
+    [groupType, group, seedFile] = getSysArgs.usage(
+        ['generate.py', '<group_type>', '<group_name>',
+         '<seed_lyrics_file_path>'])[1:]
 
     ## Load in seed lyrics
     seed = open(seedFile, 'rU')
@@ -42,11 +41,13 @@ def main():
         print 'No model has been trained for the', groupType, group, 'yet'
         return
 
+    modelFile = './weights/' + modelFile
+
     ## Length of training sequence
     seqLen = 30
 
     ## To gather training lyric data
-    train = Lyrics()
+    train = load(open('./seqs/' + groupType + '-' + group + '-seq.pkl', 'rb'))
 
     ## Seed lyric sequence
     seedSeq = train.getWordSeq(seedLyrics)
@@ -58,8 +59,6 @@ def main():
         print 'Seed lyrics require at least one word\nGiven seed lyrics:'
         print seedLyrics
         return
-
-    train.lyrics2seqs(groupType, group, [fName], seqLen)  #!! has endofsong
 
     ## Build generator model
     model = Sequential()
