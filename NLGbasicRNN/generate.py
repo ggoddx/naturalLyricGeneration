@@ -10,9 +10,24 @@ import numpy as np
 
 def main():
     ## The specified group from which to generate lyrics and lyric data
-    [groupType, group, seedFile] = getSysArgs.usage(
+    [groupType, group, seedFile, variation] = getSysArgs.usage(
         ['generate.py', '<group_type>', '<group_name>',
-         '<seed_lyrics_file_path>'])[1:]
+         '<seed_lyrics_file_path>', '<variation_score>'])[1:]
+
+    try:
+        variation = int(variation)
+    except ValueError:
+        variation = float(variation)
+
+    ## Type of variation score provided
+    typeVar = type(variation)
+
+    if ((typeVar == int and variation < 1)
+        or (typeVar == float
+            and (variation <= 0.0 or variation > 1.0))):
+        print 'Invalid variation score: ', variation
+        print 'Input a float between 0.0 and 1.0 or an int above 1'
+        return
 
     ## Load in seed lyrics
     seed = open(seedFile, 'rU')
@@ -52,13 +67,16 @@ def main():
     ## Seed lyric sequence
     seedSeq = train.getWordSeq(seedLyrics)
 
-    seedSeq = ['ppaadd'] * (seqLen - len(seedSeq)) + seedSeq
+    seedSeq = ['ppaadd'] * (seqLen - len(seedSeq)) + seedSeq + ['endofline']
     seedSeq = seedSeq[len(seedSeq) - seqLen:]
 
     if len(seedSeq) < 1:
         print 'Seed lyrics require at least one word\nGiven seed lyrics:'
         print seedLyrics
         return
+
+    ## Number of words in vocabulary
+    vocabSize = len(train.words)
 
     ## Build generator model
     model = Sequential()
@@ -67,7 +85,7 @@ def main():
     model.add(Dropout(0.2))
     model.add(LSTM(256))  #2nd layer
     model.add(Dropout(0.2))
-    model.add(Dense(len(train.words), activation = 'softmax'))
+    model.add(Dense(vocabSize, activation = 'softmax'))
 
     model.load_weights(modelFile)
     model.compile(loss = 'categorical_crossentropy', optimizer = 'adam')
@@ -89,30 +107,70 @@ def main():
                             (1, seqLen, 1)), verbose = 0)))
 
     ## Generated text
-    genTxt = seedLyrics + ' |'
+    genTxt = seedLyrics + ' |\n'
+
+    ## To store prediction distributions
+    predDists = np.empty((200, vocabSize))
+
+    ## Vocabulary as a list for use in randomly selecting word
+    wordList = [None] * len(train.words)
+
+    for word in train.words:
+        wordList[train.words[word]] = word
 
     for i in range(200):
         ## Generation initialization for model
-        genX = train.normObs(np.array(seedNS, dtype = np.float64), (1, seqLen, 1))
+        genX = train.normObs(np.array(seedNS, dtype = np.float64),
+                             (1, seqLen, 1))
 
         ## Word-prediction distribution
         pred = model.predict(genX, verbose = 0)
 
+        predDists[i] = pred[0]
+
+        if type(variation) == int and variation > vocabSize:
+            print variation, 'larger than vocabulary size of', vocabSize
+            variation = vocabSize
+
+        if type(variation) == float:
+            variation = int(variation * vocabSize)
+
+        ## Indicies of highest probability next words
+        topIs = np.argsort(-pred[0])[:variation]
+
+        pred = pred[0][topIs]
+        pred = pred / np.sum(pred)
+
+        ## Highest probability words
+        topWords = np.array(wordList)[topIs]
+
         ## Next word based on randomly choosing from word distribution
-        next = np.random.choice(train.words.keys(), p = pred[0])
+        next = np.random.choice(topWords, p = pred)
 
         if next == 'endofsong':
             break
+        elif next == 'endofline':
+            genTxt += '\n'
+        elif next == 'commachar':
+            genTxt += ','
+        elif next == 'questionmark':
+            genTxt += '?'
+        else:
+            genTxt += ' ' + next
 
-        genTxt += ' ' + next
         seedNS.append(train.words[next])
         seedNS = seedNS[1:]
 
-    genTxt = genTxt.replace(' endofline ', '\n')
-    genTxt = genTxt.replace(' commachar', ',')
-    genTxt = genTxt.replace(' questionmark', '?')
+    genTxt = genTxt.replace('endofline', '\n')
+    genTxt = genTxt.replace('commachar', ',')
+    genTxt = genTxt.replace('questionmark', '?')
 
     print genTxt
+
+    ## File to write prediction distibutions for each predicted word
+    distsCSV = csv.writer(open('predDists.csv', 'wb', buffering = 0))
+
+    distsCSV.writerows(predDists)
 
     return
 
