@@ -2,7 +2,6 @@ from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense, Dropout, LSTM
 from keras.models import Sequential
 from pickle import load
-from prepData import Lyrics
 
 import csv, getSysArgs
 import numpy as np
@@ -44,12 +43,16 @@ def main():
     ## Open CSV tracking the best model filenames for various groups
     bestModels = csv.reader(open('bestModels.csv', 'rU'))
 
+    ## Dropout rate of trained model
+    dropout = None
+
     ## Filename of trained model
     modelFile = ''
 
     for row in bestModels:  #assumes 1st and 2nd cols are groupType and group
         if row[:2] == [groupType, group]:
-            modelFile = row[2]
+            dropout = float(row[2])  #assumes dropout is in 3rd column
+            modelFile = row[3]  #assumes model filename is in 4th column
             break
 
     if modelFile == '':
@@ -82,9 +85,9 @@ def main():
     model = Sequential()
 
     model.add(LSTM(256, input_shape = (seqLen, 1), return_sequences = True)) #1
-    model.add(Dropout(0.2))
+    model.add(Dropout(dropout))
     model.add(LSTM(256))  #2nd layer
-    model.add(Dropout(0.2))
+    model.add(Dropout(dropout))
     model.add(Dense(vocabSize, activation = 'softmax'))
 
     model.load_weights(modelFile)
